@@ -23,6 +23,7 @@ from agent import run_agent
 import telemetry
 from tools_google_mcp import is_google_configured
 from skills_manager import get_skills_registry
+from tools_audio import transcribe_audio_bytes
 
 # Persistent storage directory
 DATA_DIR = telemetry.DATA_DIR
@@ -64,8 +65,10 @@ async def telegram_main(token: str):
         await update.message.reply_text(
             "👋 **Hey! I'm Tashu (Hermes Agent)**.\n\n"
             "I'm running 24/7 on Hugging Face with autonomous tools:\n"
+            "• 🎙️ Voice message & audio note support\n"
+            "• 📅 Google Calendar & Tasks management\n"
+            "• 📁 Google Drive & Gmail integration\n"
             "• 🔍 Live web search (DuckDuckGo)\n"
-            "• 📚 Document search\n"
             "• 🧹 Auto-clearing memory when context window is reached\n"
             "• 🛠️ Tool transparency in every reply\n\n"
             "Just ask me anything!"
@@ -97,10 +100,51 @@ async def telegram_main(token: str):
 
         await update.message.reply_text(reply_text)
 
+    async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.message:
+            return
+        voice = update.message.voice or update.message.audio
+        if not voice:
+            return
+
+        chat_id = str(update.message.chat_id)
+        await update.message.chat.send_action("typing")
+
+        try:
+            tg_file = await context.bot.get_file(voice.file_id)
+            audio_bytes = await tg_file.download_as_bytearray()
+            mime = getattr(voice, "mime_type", "audio/ogg") or "audio/ogg"
+
+            loop = asyncio.get_event_loop()
+            transcribed = await loop.run_in_executor(None, transcribe_audio_bytes, bytes(audio_bytes), mime)
+
+            if not transcribed or not transcribed.strip():
+                await update.message.reply_text("⚠️ Could not detect speech in that voice note. Please speak clearly or send text.")
+                return
+
+            await update.message.chat.send_action("typing")
+            history = CHATS.setdefault(chat_id, [])
+            reply_text = await loop.run_in_executor(None, run_agent, transcribed, history, chat_id)
+
+            history.append({"role": "user", "content": f"[Voice Note]: {transcribed}"})
+            history.append({"role": "assistant", "content": reply_text})
+            CHATS[chat_id] = history[-20:]
+            save_persistent_history()
+
+            full_reply = f"🎤 *\"{transcribed}\"*\n\n{reply_text}"
+            try:
+                await update.message.reply_text(full_reply, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(full_reply)
+        except Exception as e:
+            print(f"[Telegram Voice] Error processing voice note: {e}")
+            await update.message.reply_text(f"⚠️ Error processing voice message: {e}")
+
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CommandHandler("clear", clear_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_handler))
 
     print("🤖 Telegram Bot initialized and starting polling...")
     async with app:
