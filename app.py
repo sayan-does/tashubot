@@ -21,6 +21,8 @@ load_dotenv()
 
 from agent import run_agent
 import telemetry
+from tools_google_mcp import is_google_configured
+from skills_manager import get_skills_registry
 
 # Persistent storage directory
 DATA_DIR = telemetry.DATA_DIR
@@ -219,9 +221,14 @@ with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(prim
     with gr.Row():
         telegram_status = "🟢 Connected (@dhurbaalBot)" if os.environ.get("TELEGRAM_BOT_TOKEN") else "⚪ No Token"
         storage_status = "🟢 Attached (/data bucket)" if os.path.exists("/data") else "🟡 Local Storage"
+        google_status = "🟢 Connected (Drive, Cal, Gmail)" if is_google_configured() else "⚪ Needs Refresh Token"
+        skills_count = len(get_skills_registry())
+        skills_status = f"🟢 {skills_count} Skills Loaded" if skills_count > 0 else "⚪ No Skills"
+
         gr.Textbox(label="Telegram Polling Gateway", value=telegram_status, interactive=False)
         gr.Textbox(label="Persistent Bucket Storage", value=storage_status, interactive=False)
-        gr.Textbox(label="LLM Cascade Providers", value="OpenRouter Free ➔ Gemini Flash Lite", interactive=False)
+        gr.Textbox(label="Google Apps MCP Bridge", value=google_status, interactive=False)
+        gr.Textbox(label="Domain Skills Active", value=skills_status, interactive=False)
 
     with gr.Row():
         btn_refresh = gr.Button("🔄 Refresh Live Telemetry", variant="primary", scale=1)
@@ -276,6 +283,29 @@ with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(prim
                     analytics_prov = gr.Markdown(value=telemetry.get_analytics_summary()[0])
                 with gr.Column():
                     analytics_tools = gr.Markdown(value=telemetry.get_analytics_summary()[1])
+
+        with gr.Tab("🛠️ Google MCP & Skills"):
+            gr.Markdown(
+                """
+                ### 🎯 Specialized Domain Skills
+                Skills placed under the `skills/` directory (or uploaded to `/data/skills/`) are automatically discovered and invokable via `load_skill`:
+                - **`concise-accurate`**: Trims filler and corporate boilerplate; keeps responses short, dense, and factually accurate.
+                - **`time-date-awareness`**: Injects live temporal awareness for news, deadlines, reminders, and scheduling.
+
+                ---
+                ### 🌐 Google Workspace MCP Bridge
+                Connects TashuBot to your personal Google Apps:
+                - **Google Drive**: `gdrive_search_files` & `gdrive_read_file` (searches your docs folder).
+                - **Google Calendar**: `gcalendar_list_events` & `gcalendar_create_event` (schedule reminders & meetings).
+                - **Gmail**: `gmail_search_emails` & `gmail_send_email` (search messages & send drafts).
+
+                **To activate Google Apps**:
+                1. Run `python setup_google_mcp.py` on your computer.
+                2. Grant consent in your browser once.
+                3. The script will output `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_TOKEN`.
+                4. Add them to your Space Settings ➔ Variables and secrets!
+                """
+            )
 
         with gr.Tab("💾 Storage Bucket & System"):
             storage_box = gr.Markdown(value="Loading storage details...")
