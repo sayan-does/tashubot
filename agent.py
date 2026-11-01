@@ -86,9 +86,8 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
             if not tool_calls:
                 content = reply.get("content", "") if isinstance(reply, dict) else str(reply)
                 
-                # Format transparency footer
-                tool_summary = ", ".join(tools_used) if tools_used else "None (Direct Knowledge)"
-                footer = f"\n\n---\n🛠️ **Tools / Skills Used**: `{tool_summary}`"
+                # Format transparency footer only if tools were actually invoked
+                footer = f"\n\n---\n🛠️ **Tools / Skills Used**: `{', '.join(tools_used)}`" if tools_used else ""
                 final_answer = cleared_notice + content + footer
 
                 latency_ms = (time.time() - start_time) * 1000
@@ -132,12 +131,11 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
                     }
                 )
 
-        tool_summary = ", ".join(tools_used) if tools_used else "None"
+        footer = f"\n\n---\n🛠️ **Tools / Skills Used**: `{', '.join(tools_used)}`" if tools_used else ""
         fallback_msg = (
             cleared_notice
-            + "I hit the maximum search hops. Please try rephrasing your request.\n\n---\n🛠️ **Tools / Skills Used**: `"
-            + tool_summary
-            + "`"
+            + "I hit the maximum search hops. Please try rephrasing your request."
+            + footer
         )
         latency_ms = (time.time() - start_time) * 1000
         record_trace(
