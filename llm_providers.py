@@ -14,7 +14,7 @@ class ProviderError(Exception):
 # Individual LLM Providers
 # ---------------------------------------------------------------------------
 
-def call_groq(messages, tools=None, model="llama-3.3-70b-versatile"):
+def call_groq(messages, tools=None, model="openai/gpt-oss-120b"):
     """Groq ultra-fast LPU inference (500-800 tokens/sec, 14,400 free requests/day)."""
     key = os.environ.get("GROQ_API_KEY", "").strip()
     if not key:
@@ -31,6 +31,9 @@ def call_groq(messages, tools=None, model="llama-3.3-70b-versatile"):
         timeout=25,
     )
     if r.status_code != 200:
+        # Fallback to Qwen on Groq if model unavailable
+        if model != "qwen/qwen3.8-27b":
+            return call_groq(messages, tools=tools, model="qwen/qwen3.8-27b")
         raise ProviderError(f"Groq status {r.status_code}: {r.text}")
     return r.json()["choices"][0]["message"]
 
@@ -153,7 +156,7 @@ def classify_prompt_intent(user_text: str) -> tuple[str, str]:
         {"role": "user", "content": clean_text},
     ]
 
-    # 1. Try Groq tiny model (Llama-3.1-8B-Instant)
+    # 1. Try Groq tiny fast router (Qwen 27B @ 800 t/s)
     groq_key = os.environ.get("GROQ_API_KEY", "").strip()
     if groq_key:
         try:
@@ -161,9 +164,9 @@ def classify_prompt_intent(user_text: str) -> tuple[str, str]:
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}"},
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "qwen/qwen3.8-27b",
                     "messages": router_msgs,
-                    "max_tokens": 10,
+                    "max_tokens": 15,
                     "temperature": 0.0,
                 },
                 timeout=4,
@@ -172,7 +175,7 @@ def classify_prompt_intent(user_text: str) -> tuple[str, str]:
                 raw_cat = r.json()["choices"][0]["message"]["content"].strip().upper()
                 for valid in ["CODE", "MATH_LOGIC", "GOOGLE_WORKSPACE", "SEARCH_FACTS", "FAST_CHAT"]:
                     if valid in raw_cat:
-                        return valid, "Groq (Llama-3.1-8B-Router)"
+                        return valid, "Groq (Qwen-Router)"
         except Exception as e:
             print(f"[Router] Groq router error: {e}")
 
