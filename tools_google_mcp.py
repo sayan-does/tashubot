@@ -366,3 +366,98 @@ def gmail_send_email(to: str, subject: str, body: str) -> dict:
         return {"error": f"Gmail send error ({r.status_code}): {r.text}"}
     except Exception as e:
         return {"error": f"Failed to send email: {e}"}
+
+
+# ---------------------------------------------------------------------------
+# 4. Google Tasks MCP Tools
+# ---------------------------------------------------------------------------
+
+def gtasks_list_tasks(tasklist_id: str = "@default", show_completed: bool = False, max_results: int = 10) -> list:
+    """List tasks and to-dos from Google Tasks."""
+    token = _get_access_token()
+    if not token:
+        return [{"error": "Google Tasks MCP is not configured. Add GOOGLE_REFRESH_TOKEN with Tasks scope to Space Secrets."}]
+
+    try:
+        r = httpx.get(
+            f"https://tasks.googleapis.com/tasks/v1/lists/{tasklist_id}/tasks",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "showCompleted": "true" if show_completed else "false",
+                "maxResults": max_results,
+            },
+            timeout=15,
+        )
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            if not items:
+                return [{"message": "No pending tasks found in your Google Tasks list."}]
+            return [
+                {
+                    "id": item.get("id"),
+                    "title": item.get("title", "Untitled"),
+                    "notes": item.get("notes", ""),
+                    "status": item.get("status"),
+                    "due": item.get("due"),
+                }
+                for item in items
+            ]
+        return [{"error": f"Tasks API error ({r.status_code}): {r.text}"}]
+    except Exception as e:
+        return [{"error": f"Failed to list tasks: {e}"}]
+
+
+def gtasks_create_task(title: str, notes: str = None, due: str = None, tasklist_id: str = "@default") -> dict:
+    """Create a new task or to-do item in Google Tasks."""
+    token = _get_access_token()
+    if not token:
+        return {"error": "Google Tasks MCP is not configured."}
+
+    body = {"title": title}
+    if notes:
+        body["notes"] = notes
+    if due:
+        if not due.endswith("Z") and "T" not in due:
+            due = f"{due}T00:00:00.000Z"
+        elif not due.endswith("Z"):
+            due = f"{due}Z"
+        body["due"] = due
+
+    try:
+        r = httpx.post(
+            f"https://tasks.googleapis.com/tasks/v1/lists/{tasklist_id}/tasks",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=body,
+            timeout=15,
+        )
+        if r.status_code in (200, 201):
+            created = r.json()
+            return {
+                "status": "success",
+                "message": f"Task '{title}' created successfully!",
+                "id": created.get("id"),
+                "due": created.get("due"),
+            }
+        return {"error": f"Tasks create error ({r.status_code}): {r.text}"}
+    except Exception as e:
+        return {"error": f"Failed to create task: {e}"}
+
+
+def gtasks_complete_task(task_id: str, tasklist_id: str = "@default") -> dict:
+    """Mark a Google Task as completed."""
+    token = _get_access_token()
+    if not token:
+        return {"error": "Google Tasks MCP is not configured."}
+
+    try:
+        r = httpx.patch(
+            f"https://tasks.googleapis.com/tasks/v1/lists/{tasklist_id}/tasks/{task_id}",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"status": "completed"},
+            timeout=15,
+        )
+        if r.status_code == 200:
+            return {"status": "success", "message": "Task marked as completed!"}
+        return {"error": f"Tasks update error ({r.status_code}): {r.text}"}
+    except Exception as e:
+        return {"error": f"Failed to complete task: {e}"}

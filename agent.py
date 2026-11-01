@@ -13,6 +13,9 @@ from tools_google_mcp import (
     gcalendar_create_event,
     gmail_search_emails,
     gmail_send_email,
+    gtasks_list_tasks,
+    gtasks_create_task,
+    gtasks_complete_task,
 )
 
 TOOLS = [
@@ -132,6 +135,50 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "gtasks_list_tasks",
+            "description": "List to-dos and tasks from Google Tasks (e.g. pending items, chores, project tasks).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "show_completed": {"type": "boolean", "description": "Whether to include completed tasks (default false)"},
+                    "max_results": {"type": "integer", "description": "Maximum tasks to return (default 10)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gtasks_create_task",
+            "description": "Create a new task or to-do item in Google Tasks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Title or summary of the task to do"},
+                    "notes": {"type": "string", "description": "Optional details or notes"},
+                    "due": {"type": "string", "description": "Optional due date in ISO format (e.g. '2026-11-03')"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gtasks_complete_task",
+            "description": "Mark a Google Task as completed by task ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "The exact ID of the task to complete"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "search_docs",
             "description": "Search local ChromaDB indexed personal notes and documents.",
             "parameters": {
@@ -152,6 +199,9 @@ FUNCS = {
     "gcalendar_create_event": gcalendar_create_event,
     "gmail_search_emails": gmail_search_emails,
     "gmail_send_email": gmail_send_email,
+    "gtasks_list_tasks": gtasks_list_tasks,
+    "gtasks_create_task": gtasks_create_task,
+    "gtasks_complete_task": gtasks_complete_task,
     "search_docs": search_docs,
 }
 
@@ -170,6 +220,7 @@ Core Capabilities & Guidelines:
 1. Google Apps MCP:
    - Google Drive: Use `gdrive_search_files` and `gdrive_read_file` to search documents and notes.
    - Google Calendar: Use `gcalendar_list_events` and `gcalendar_create_event` for schedule and reminders.
+   - Google Tasks: Use `gtasks_list_tasks`, `gtasks_create_task`, and `gtasks_complete_task` to manage to-dos and checklists.
    - Gmail: Use `gmail_search_emails` and `gmail_send_email` for email lookups and drafting.
 2. Web Search: Use `web_search` for fresh facts, sports scores, news, or latest updates.
 3. Personal RAG: Use `search_docs` for locally stored vector documents.

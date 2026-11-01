@@ -297,6 +297,7 @@ with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(prim
                 Connects TashuBot to your personal Google Apps:
                 - **Google Drive**: `gdrive_search_files` & `gdrive_read_file` (searches your docs folder).
                 - **Google Calendar**: `gcalendar_list_events` & `gcalendar_create_event` (schedule reminders & meetings).
+                - **Google Tasks**: `gtasks_list_tasks`, `gtasks_create_task`, `gtasks_complete_task` (manage to-dos & checklists).
                 - **Gmail**: `gmail_search_emails` & `gmail_send_email` (search messages & send drafts).
 
                 **To activate Google Apps**:
