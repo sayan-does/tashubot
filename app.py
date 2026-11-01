@@ -6,6 +6,15 @@ import threading
 import gradio as gr
 from dotenv import load_dotenv
 
+try:
+    import spaces
+
+    @spaces.GPU
+    def dummy_gpu_fn():
+        return True
+except Exception:
+    pass
+
 load_dotenv()
 
 from agent import run_agent
