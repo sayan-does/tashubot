@@ -64,6 +64,7 @@ def record_trace(
     context_len: int,
     status: str = "SUCCESS",
     error_msg: str = None,
+    router_info: dict = None,
 ):
     with _LOCK:
         m = _STATE["metrics"]
@@ -103,12 +104,16 @@ def record_trace(
         s["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         trace_id = f"tr_{int(time.time() * 1000)}"
+        r_intent = router_info.get("intent", "GENERAL") if router_info else "GENERAL"
+        r_model = router_info.get("router", "Heuristic") if router_info else "Heuristic"
         trace_entry = {
             "trace_id": trace_id,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
             "chat_id": str(chat_id),
             "prompt": user_message[:120] + ("..." if len(user_message) > 120 else ""),
             "full_prompt": user_message,
+            "intent": r_intent,
+            "router_model": r_model,
             "provider": provider,
             "tools_used": tools_used if tools_used else ["None"],
             "tool_details": tool_details,
@@ -160,7 +165,7 @@ def get_traces_table_data():
                 [
                     t["trace_id"],
                     t["timestamp"],
-                    t["chat_id"],
+                    t.get("intent", "GENERAL"),
                     t["prompt"],
                     ", ".join(t["tools_used"]),
                     t["provider"],

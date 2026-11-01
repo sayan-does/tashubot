@@ -263,10 +263,13 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
     tools_used = []
     tool_details = []
     chosen_provider = "unknown"
+    router_info = {"intent": "GENERAL", "router": "Heuristic"}
 
     try:
         for hop in range(5):  # max tool-call hops
-            reply, chosen_provider = cascade_call(messages, tools=TOOLS)
+            reply, chosen_provider, r_info = cascade_call(messages, tools=TOOLS)
+            if r_info:
+                router_info = r_info
             messages.append(reply)
 
             tool_calls = reply.get("tool_calls") if isinstance(reply, dict) else None
@@ -289,6 +292,7 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
                     memory_pruned=memory_pruned,
                     context_len=len(history) + 2,
                     status="SUCCESS",
+                    router_info=router_info,
                 )
                 return final_answer
 
@@ -343,6 +347,7 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
             memory_pruned=memory_pruned,
             context_len=len(history) + 2,
             status="MAX_HOPS",
+            router_info=router_info,
         )
         return fallback_msg
 
@@ -361,5 +366,6 @@ def run_agent(user_message: str, history: list, chat_id: str = "default"):
             context_len=len(history) + 2,
             status="ERROR",
             error_msg=str(e),
+            router_info=router_info,
         )
         return err_msg

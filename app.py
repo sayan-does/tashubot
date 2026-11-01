@@ -190,6 +190,7 @@ def format_kpi_markdown():
 | **Autonomous Tool Calls** | `{kpis['total_tool_calls']}` executions | 🛠️ Multi-hop Active |
 | **Context Window Resets** | `{kpis['total_prunes']}` compactions | 🧹 Auto-Prune (Max 16) |
 | **Average End-to-End Latency** | `{kpis['avg_latency']}` | ⏱️ Fast |
+| **Model Orchestrator** | `Tiny Model LLM-as-a-Router` | 🧠 Groq / GitHub / Mistral / Gemini |
 | **Active Telegram Users** | `{kpis['active_sessions']}` sessions | 📱 [@dhurbaalBot](https://t.me/dhurbaalBot) |
 | **Errors Encountered** | `{kpis['error_count']}` errors | {'🟢 Zero Errors' if kpis['error_count'] == 0 else '⚠️ Needs Attention'} |
 """
@@ -283,7 +284,7 @@ with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(prim
         with gr.Tab("📜 Live Execution Traces"):
             gr.Markdown("#### Real-time Feed of Incoming Telegram Requests & Multi-Hop Tool Chains")
             traces_table = gr.Dataframe(
-                headers=["Trace ID", "Time", "User ID", "Prompt Preview", "Tools Used", "LLM Provider", "Latency", "Memory Pruned", "Status"],
+                headers=["Trace ID", "Time", "Inferred Intent", "Prompt Preview", "Tools Used", "LLM Provider", "Latency", "Memory Pruned", "Status"],
                 value=telemetry.get_traces_table_data(),
                 datatype=["str", "str", "str", "str", "str", "str", "str", "str", "str"],
                 interactive=False,
