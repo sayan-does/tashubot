@@ -3,6 +3,8 @@ import sys
 import json
 import asyncio
 import threading
+import time
+from datetime import datetime
 import gradio as gr
 from dotenv import load_dotenv
 
@@ -18,10 +20,10 @@ except Exception:
 load_dotenv()
 
 from agent import run_agent
+import telemetry
 
-# Use persistent storage bucket if mounted at /data, otherwise fallback to local ./data
-DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(os.path.dirname(__file__), "data")
-os.makedirs(DATA_DIR, exist_ok=True)
+# Persistent storage directory
+DATA_DIR = telemetry.DATA_DIR
 HISTORY_FILE = os.path.join(DATA_DIR, "chat_history.json")
 
 # In-memory history cache: chat_id -> list of {"role": str, "content": str}
@@ -49,7 +51,7 @@ def save_persistent_history():
 load_persistent_history()
 
 # ---------------------------------------------------------------------------
-# Telegram Bot Background Runner
+# Telegram Bot Background Daemon
 # ---------------------------------------------------------------------------
 
 async def telegram_main(token: str):
@@ -59,7 +61,7 @@ async def telegram_main(token: str):
     async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 **Hey! I'm Tashu (Hermes Agent)**.\n\n"
-            "I'm running 24/7 on the cloud with autonomous tools:\n"
+            "I'm running 24/7 on Hugging Face with autonomous tools:\n"
             "• 🔍 Live web search (DuckDuckGo)\n"
             "• 📚 Document search\n"
             "• 🧹 Auto-clearing memory when context window is reached\n"
@@ -84,7 +86,7 @@ async def telegram_main(token: str):
 
         history = CHATS.setdefault(chat_id, [])
         loop = asyncio.get_event_loop()
-        reply_text = await loop.run_in_executor(None, run_agent, user_text, history)
+        reply_text = await loop.run_in_executor(None, run_agent, user_text, history, chat_id)
 
         history.append({"role": "user", "content": user_text})
         history.append({"role": "assistant", "content": reply_text})
@@ -128,60 +130,208 @@ def start_telegram_thread():
 start_telegram_thread()
 
 # ---------------------------------------------------------------------------
-# Gradio Web Dashboard & Interface
+# Gradio Observability & Mission Control Dashboard
 # ---------------------------------------------------------------------------
 
-def web_chat_response(message, history):
-    web_history = []
-    for item in history:
-        if isinstance(item, dict):
-            web_history.append(item)
-        elif isinstance(item, (list, tuple)) and len(item) == 2:
-            web_history.append({"role": "user", "content": str(item[0])})
-            web_history.append({"role": "assistant", "content": str(item[1])})
+def format_kpi_markdown():
+    kpis = telemetry.get_kpis()
+    return f"""
+### 📊 Live Performance Telemetry
+| Metric | Value | Status |
+| :--- | :--- | :--- |
+| **System Uptime** | `{kpis['uptime']}` | 🟢 Stable |
+| **Total Invocations** | `{kpis['total_messages']}` requests | ⚡ Live |
+| **Autonomous Tool Calls** | `{kpis['total_tool_calls']}` executions | 🛠️ Multi-hop Active |
+| **Context Window Resets** | `{kpis['total_prunes']}` compactions | 🧹 Auto-Prune (Max 16) |
+| **Average End-to-End Latency** | `{kpis['avg_latency']}` | ⏱️ Fast |
+| **Active Telegram Users** | `{kpis['active_sessions']}` sessions | 📱 [@dhurbaalBot](https://t.me/dhurbaalBot) |
+| **Errors Encountered** | `{kpis['error_count']}` errors | {'🟢 Zero Errors' if kpis['error_count'] == 0 else '⚠️ Needs Attention'} |
+"""
 
-    reply = run_agent(message, web_history)
-    return reply
+
+def get_dashboard_data():
+    kpi_md = format_kpi_markdown()
+    traces = telemetry.get_traces_table_data()
+    sessions = telemetry.get_sessions_table_data()
+    trace_ids = telemetry.get_trace_ids()
+    prov_md, tool_md = telemetry.get_analytics_summary()
+    storage_info = telemetry.get_storage_info()
+
+    storage_md = f"""
+### 💾 Storage Bucket Architecture
+- **Mount Path**: `{storage_info['mount_path']}`
+- **Storage Type**: {'🟢 Hugging Face Cloud Bucket (/data)' if storage_info['is_hf_bucket'] else '🟡 Local Disk Emulation'}
+- **Total Tracked Data Size**: `{storage_info['total_size_kb']} KB`
+- **Files Stored**:
+"""
+    for f in storage_info.get("files", []):
+        storage_md += f"  - `{f}`\n"
+
+    default_trace_id = trace_ids[0] if trace_ids else None
+    trace_detail = telemetry.get_trace_detail(default_trace_id) if default_trace_id else {"status": "No traces yet"}
+
+    return (
+        kpi_md,
+        traces,
+        sessions,
+        gr.update(choices=trace_ids, value=default_trace_id),
+        trace_detail,
+        prov_md,
+        tool_md,
+        storage_md,
+    )
 
 
-with gr.Blocks(title="TashuBot — Hermes Agent", theme=gr.themes.Soft()) as demo:
+def on_select_trace(trace_id):
+    if not trace_id:
+        return {"notice": "Please select a trace"}
+    return telemetry.get_trace_detail(trace_id)
+
+
+def on_clear_session(chat_id_to_clear):
+    cid = str(chat_id_to_clear).strip()
+    if not cid:
+        return "⚠️ Please enter a valid Chat ID"
+    if cid in CHATS:
+        CHATS.pop(cid, None)
+        save_persistent_history()
+        return f"✅ Successfully cleared memory for Chat ID `{cid}` from persistent bucket!"
+    return f"ℹ️ Chat ID `{cid}` had no active memory in store."
+
+
+def run_diagnostic_prompt(prompt_text):
+    if not prompt_text:
+        return "Please enter a test prompt."
+    t0 = time.time()
+    resp = run_agent(prompt_text, [], chat_id="web_diagnostic")
+    dur = round((time.time() - t0) * 1000, 1)
+    return f"⏱️ Completed in {dur} ms\n\n{resp}"
+
+
+with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(primary_hue="blue", secondary_hue="indigo")) as demo:
     gr.Markdown(
         """
-        # ☤ TashuBot (Hermes Agent)
-        ### 24/7 Cloud Assistant with Web Search, Document Search & Auto-Memory Management
+        # ☤ TashuBot Observability & Mission Control
+        ### Autonomous Hermes Telegram Agent • Live Telemetry, Multi-Hop Traces & Bucket Health
         """
     )
 
     with gr.Row():
-        telegram_status = "🟢 Connected" if os.environ.get("TELEGRAM_BOT_TOKEN") else "⚪ No Token"
-        storage_status = "🟢 Connected (/data bucket)" if os.path.exists("/data") else "🟡 Local Storage"
-        gr.Textbox(label="Telegram Bot Status", value=f"{telegram_status} (@dhurbaalBot)", interactive=False)
-        gr.Textbox(label="Persistent Storage", value=storage_status, interactive=False)
-        gr.Textbox(label="Inference Engines", value="OpenRouter Free + Gemini Flash Lite", interactive=False)
+        telegram_status = "🟢 Connected (@dhurbaalBot)" if os.environ.get("TELEGRAM_BOT_TOKEN") else "⚪ No Token"
+        storage_status = "🟢 Attached (/data bucket)" if os.path.exists("/data") else "🟡 Local Storage"
+        gr.Textbox(label="Telegram Polling Gateway", value=telegram_status, interactive=False)
+        gr.Textbox(label="Persistent Bucket Storage", value=storage_status, interactive=False)
+        gr.Textbox(label="LLM Cascade Providers", value="OpenRouter Free ➔ Gemini Flash Lite", interactive=False)
 
-    with gr.Tab("💬 Web Chat"):
-        gr.ChatInterface(
-            fn=web_chat_response,
-            examples=[
-                "Who won the latest cricket match?",
-                "What can you do?",
-                "Explain quantum computing in simple terms",
-            ],
-            type="messages"
-        )
+    with gr.Row():
+        btn_refresh = gr.Button("🔄 Refresh Live Telemetry", variant="primary", scale=1)
 
-    with gr.Tab("ℹ️ Connected Channels & Settings"):
-        gr.Markdown(
-            f"""
-            ### 📱 Telegram Integration
-            - **Bot Link**: [@dhurbaalBot](https://t.me/dhurbaalBot)
-            - **Features Enabled**:
-              - 🔍 **Web Search**: DuckDuckGo live search with error handling.
-              - 🧹 **Auto-Clear Memory**: When conversation reaches context window limit, old turns are automatically cleared and user is notified.
-              - 🛠️ **Tool Transparency**: Every response explicitly includes a footer showing tools used.
-              - 💾 **Persistent Storage**: Bucket mounted at `{DATA_DIR}` saving state across restarts.
-            """
+    kpi_box = gr.Markdown(value=format_kpi_markdown())
+
+    with gr.Tabs():
+        with gr.Tab("📜 Live Execution Traces"):
+            gr.Markdown("#### Real-time Feed of Incoming Telegram Requests & Multi-Hop Tool Chains")
+            traces_table = gr.Dataframe(
+                headers=["Trace ID", "Time", "User ID", "Prompt Preview", "Tools Used", "LLM Provider", "Latency", "Memory Pruned", "Status"],
+                value=telemetry.get_traces_table_data(),
+                datatype=["str", "str", "str", "str", "str", "str", "str", "str", "str"],
+                interactive=False,
+                wrap=True,
+            )
+
+            gr.Markdown("---")
+            gr.Markdown("#### 🔍 Trace Deep Dive Inspector")
+            with gr.Row():
+                trace_dropdown = gr.Dropdown(
+                    label="Select Trace ID to Inspect",
+                    choices=telemetry.get_trace_ids(),
+                    value=telemetry.get_trace_ids()[0] if telemetry.get_trace_ids() else None,
+                    interactive=True,
+                    scale=2,
+                )
+                btn_inspect = gr.Button("Inspect Trace", scale=1)
+
+            trace_json = gr.JSON(
+                label="Trace Payload & Multi-Hop Tool Calls",
+                value=telemetry.get_trace_detail(telemetry.get_trace_ids()[0]) if telemetry.get_trace_ids() else {"notice": "No traces yet"},
+            )
+
+        with gr.Tab("🧠 Memory & Sessions"):
+            gr.Markdown("#### Active Telegram User Sessions & Context Window Utilization (Threshold: 16 turns)")
+            sessions_table = gr.Dataframe(
+                headers=["Chat ID", "Total Messages", "Context Load (Max 16)", "Compaction Count", "Last Active"],
+                value=telemetry.get_sessions_table_data(),
+                datatype=["str", "number", "str", "number", "str"],
+                interactive=False,
+            )
+
+            with gr.Row():
+                session_input = gr.Textbox(label="Target Telegram Chat ID", placeholder="e.g. 9132492382", scale=2)
+                btn_clear_mem = gr.Button("🧹 Wipe Session Memory", variant="stop", scale=1)
+            session_action_status = gr.Markdown()
+
+        with gr.Tab("📊 Model & Tool Analytics"):
+            with gr.Row():
+                with gr.Column():
+                    analytics_prov = gr.Markdown(value=telemetry.get_analytics_summary()[0])
+                with gr.Column():
+                    analytics_tools = gr.Markdown(value=telemetry.get_analytics_summary()[1])
+
+        with gr.Tab("💾 Storage Bucket & System"):
+            storage_box = gr.Markdown(value="Loading storage details...")
+            gr.Markdown(
+                """
+                ---
+                ### 🚀 Live Diagnostic Prompt Tester
+                Execute a test prompt to benchmark latency and verify tools right now without sending a Telegram message.
+                """
+            )
+            with gr.Row():
+                diagnostic_input = gr.Textbox(label="Diagnostic Test Query", placeholder="e.g. Who won the ICC World Cup?", scale=3)
+                btn_run_diag = gr.Button("Run Diagnostic", variant="secondary", scale=1)
+            diagnostic_output = gr.Markdown()
+
+    # Event Handlers
+    btn_refresh.click(
+        fn=get_dashboard_data,
+        inputs=[],
+        outputs=[kpi_box, traces_table, sessions_table, trace_dropdown, trace_json, analytics_prov, analytics_tools, storage_box],
+    )
+
+    trace_dropdown.change(
+        fn=on_select_trace,
+        inputs=[trace_dropdown],
+        outputs=[trace_json],
+    )
+
+    btn_inspect.click(
+        fn=on_select_trace,
+        inputs=[trace_dropdown],
+        outputs=[trace_json],
+    )
+
+    btn_clear_mem.click(
+        fn=on_clear_session,
+        inputs=[session_input],
+        outputs=[session_action_status],
+    )
+
+    btn_run_diag.click(
+        fn=run_diagnostic_prompt,
+        inputs=[diagnostic_input],
+        outputs=[diagnostic_output],
+    )
+
+    # Auto-refresh using Gradio 5 Timer if supported
+    try:
+        timer = gr.Timer(value=5)
+        timer.tick(
+            fn=get_dashboard_data,
+            inputs=[],
+            outputs=[kpi_box, traces_table, sessions_table, trace_dropdown, trace_json, analytics_prov, analytics_tools, storage_box],
         )
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
