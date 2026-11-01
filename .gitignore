@@ -5,3 +5,6 @@ __pycache__/
 hermes-agent/
 data/
 .venv/
+credentials.json
+client_secret*.json
+exchange_code.py
