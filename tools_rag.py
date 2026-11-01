@@ -2,7 +2,8 @@ import os
 
 def search_docs(query: str, n_results: int = 5):
     """Search personal documents if available, otherwise return notice."""
-    store_path = "./chroma_store"
+    base_dir = "/data" if os.path.exists("/data") else "."
+    store_path = os.path.join(base_dir, "chroma_store")
     if not os.path.exists(store_path):
         return [{"snippet": "No personal documents indexed yet."}]
     try:

@@ -124,9 +124,12 @@ start_telegram_thread()
 
 def web_chat_response(message, history):
     web_history = []
-    for user_msg, bot_msg in history:
-        web_history.append({"role": "user", "content": user_msg})
-        web_history.append({"role": "assistant", "content": bot_msg})
+    for item in history:
+        if isinstance(item, dict):
+            web_history.append(item)
+        elif isinstance(item, (list, tuple)) and len(item) == 2:
+            web_history.append({"role": "user", "content": str(item[0])})
+            web_history.append({"role": "assistant", "content": str(item[1])})
 
     reply = run_agent(message, web_history)
     return reply
