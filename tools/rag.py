@@ -1,8 +1,11 @@
 import os
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
 def search_docs(query: str, n_results: int = 5):
     """Search personal documents if available, otherwise return notice."""
-    base_dir = "/data" if os.path.exists("/data") else "."
+    base_dir = "/data" if os.path.exists("/data") else PROJECT_ROOT
     store_path = os.path.join(base_dir, "chroma_store")
     if not os.path.exists(store_path):
         return [{"snippet": "No personal documents indexed yet."}]

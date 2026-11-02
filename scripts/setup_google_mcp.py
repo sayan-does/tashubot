@@ -24,7 +24,9 @@ import webbrowser
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+dotenv_file = os.path.join(PROJECT_ROOT, ".env")
+load_dotenv(dotenv_file if os.path.exists(dotenv_file) else None)
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",

@@ -19,11 +19,10 @@ except Exception:
 
 load_dotenv()
 
-from agent import run_agent
-import telemetry
-from tools_google_mcp import is_google_configured
-from skills_manager import get_skills_registry
-from tools_audio import transcribe_audio_bytes
+from core.agent import run_agent
+from core import telemetry
+from core.skills_manager import get_skills_registry
+from tools import is_google_configured, transcribe_audio_bytes
 
 # Persistent storage directory
 DATA_DIR = telemetry.DATA_DIR
@@ -346,7 +345,7 @@ with gr.Blocks(title="TashuBot Observability Cockpit", theme=gr.themes.Soft(prim
                 - **Gmail**: `gmail_search_emails` & `gmail_send_email` (search messages & send drafts).
 
                 **To activate Google Apps**:
-                1. Run `python setup_google_mcp.py` on your computer.
+                1. Run `python scripts/setup_google_mcp.py` on your computer.
                 2. Grant consent in your browser once.
                 3. The script will output `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_TOKEN`.
                 4. Add them to your Space Settings ➔ Variables and secrets!

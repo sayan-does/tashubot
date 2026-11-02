@@ -1,12 +1,12 @@
 import json
 import time
 from datetime import datetime
-from llm_providers import cascade_call
-from tools_search import web_search
-from tools_rag import search_docs
-from telemetry import record_trace
-from skills_manager import get_skills_prompt_summary, load_skill_tool
-from tools_google_mcp import (
+from core.llm_providers import cascade_call
+from core.telemetry import record_trace
+from core.skills_manager import get_skills_prompt_summary, load_skill_tool
+from tools import (
+    web_search,
+    search_docs,
     gdrive_search_files,
     gdrive_read_file,
     gcalendar_list_events,
@@ -16,8 +16,6 @@ from tools_google_mcp import (
     gtasks_list_tasks,
     gtasks_create_task,
     gtasks_complete_task,
-)
-from tools_github import (
     github_list_repos,
     github_get_repo,
     github_list_files,

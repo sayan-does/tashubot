@@ -1,7 +1,13 @@
-import chromadb, ollama, pathlib
+import os
+import pathlib
+import chromadb
+import ollama
 
-DOCS_DIR = "./documents"  # Change this to the path of your documents folder
-client = chromadb.PersistentClient(path="./chroma_store")
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
+DOCS_DIR = PROJECT_ROOT / "documents"
+CHROMA_STORE = PROJECT_ROOT / "chroma_store"
+
+client = chromadb.PersistentClient(path=str(CHROMA_STORE))
 collection = client.get_or_create_collection("personal_docs")
 
 

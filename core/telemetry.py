@@ -4,7 +4,8 @@ import json
 import threading
 from datetime import datetime
 
-DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(os.path.dirname(__file__), "data")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(PROJECT_ROOT, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 TELEMETRY_FILE = os.path.join(DATA_DIR, "telemetry.json")
 

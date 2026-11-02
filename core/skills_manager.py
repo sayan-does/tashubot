@@ -4,9 +4,10 @@ import json
 import zipfile
 from datetime import datetime
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKILL_DIRS = [
-    os.path.join(os.path.dirname(__file__), "skills"),
-    os.path.join(os.path.dirname(__file__), "Skills"),
+    os.path.join(PROJECT_ROOT, "skills"),
+    os.path.join(PROJECT_ROOT, "Skills"),
     "/data/skills",
 ]
 
