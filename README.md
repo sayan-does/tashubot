@@ -72,6 +72,7 @@ tashu/
 │   ├── test_tools_schema.py      # Tool JSON schema validation
 │   ├── test_skills.py            # Skill registry & parsing tests
 │   └── test_telemetry.py         # KPI & trace logging tests
+├── setup.py                      # Interactive CLI onboarding wizard & health inspector
 ├── app.py                        # Gradio Cockpit UI + Telegram Daemon entry point
 ├── server.py                     # Standalone CLI Telegram bot runner
 ├── requirements.txt              # Production dependencies
@@ -97,17 +98,19 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+### 2. Interactive Setup Wizard (One-Step Onboarding)
 
-Copy `.env.example` to `.env` and provide your keys:
+Run the all-in-one setup wizard to configure your Telegram token, LLM providers, Google Workspace MCP integration, and optional cloud deployment with instant live validation:
 
 ```bash
-cp .env.example .env
+python setup.py
 ```
 
-Key variables to configure:
-- `TELEGRAM_BOT_TOKEN`: From [@BotFather](https://t.me/BotFather)
-- `GROQ_API_KEY`: From [Groq Console](https://console.groq.com/keys) (recommended for fastest responses)
+Helpful CLI commands:
+- `python setup.py`: Guided step-by-step onboarding with live API checks.
+- `python setup.py --check`: Run diagnostic health check on all configured services.
+- `python setup.py --test`: Run the automated test suite.
+- `python setup.py --help`: View available commands.
 - `GEMINI_API_KEY`: From [Google AI Studio](https://aistudio.google.com/apikey)
 - `GITHUB_TOKEN`: From GitHub Personal Access Tokens (for GitHub Models & tools)
 
