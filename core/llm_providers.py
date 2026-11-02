@@ -52,15 +52,31 @@ def call_github_models(messages, tools=None, model="gpt-4o-mini"):
     if tools:
         payload["tools"] = tools
 
-    r = httpx.post(
+    endpoints = [
+        "https://models.github.ai/inference/chat/completions",
         "https://models.inference.ai.azure.com/chat/completions",
-        headers={"Authorization": f"Bearer {token}"},
-        json=payload,
-        timeout=30,
-    )
-    if r.status_code != 200:
-        raise ProviderError(f"GitHub Models status {r.status_code}: {r.text}")
-    return r.json()["choices"][0]["message"]
+    ]
+    last_err = None
+    for url in endpoints:
+        try:
+            r = httpx.post(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                json=payload,
+                timeout=30,
+            )
+            if r.status_code == 200:
+                try:
+                    data = r.json()
+                    if isinstance(data, dict) and "choices" in data:
+                        return data["choices"][0]["message"]
+                except Exception:
+                    pass
+            last_err = f"GitHub Models ({url}) returned status {r.status_code}: {r.text[:100]}"
+        except Exception as e:
+            last_err = f"GitHub Models ({url}) error: {e}"
+
+    raise ProviderError(last_err or "GitHub Models call failed")
 
 
 def call_mistral(messages, tools=None, model="mistral-small-latest"):
