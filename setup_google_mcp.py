@@ -22,6 +22,9 @@ import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import webbrowser
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
@@ -36,18 +39,37 @@ AUTH_CODE = None
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global AUTH_CODE
+        if "favicon.ico" in self.path:
+            self.send_response(204)
+            self.end_headers()
+            return
+
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
         if "code" in params:
             AUTH_CODE = params["code"][0]
+            body = (
+                b"<html><head><title>Auth Success</title></head>"
+                b"<body style='font-family:sans-serif;text-align:center;padding:50px;background:#111;color:#eee;'>"
+                b"<h1 style='color:#4ade80;'>&#10004; Authentication Successful!</h1>"
+                b"<p style='font-size:18px;'>Google Tasks & Workspace permissions have been granted.</p>"
+                b"<p style='color:#888;'>You can now close this tab and return to your terminal.</p>"
+                b"</body></html>"
+            )
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
             self.end_headers()
-            self.wfile.write(b"<h1>Authentication Successful!</h1><p>You can close this tab and return to the terminal.</p>")
+            self.wfile.write(body)
         else:
+            body = b"Failed to capture authorization code. Please return to the terminal."
             self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
             self.end_headers()
-            self.wfile.write(b"Failed to capture authorization code.")
+            self.wfile.write(body)
 
     def log_message(self, format, *args):
         pass  # Quiet HTTP server logs
@@ -55,7 +77,7 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
 def main():
     print("=" * 65)
-    print("   ☤ TashuBot Google Apps MCP Setup (Drive, Calendar, Gmail)")
+    print("   ☤ TashuBot Google Apps MCP Setup (Drive, Calendar, Gmail, Tasks)")
     print("=" * 65)
 
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
@@ -131,6 +153,23 @@ def main():
         print("⚠️ No refresh token returned. Did you include prompt=consent?")
         print(token_data)
         return
+
+    # Automatically save GOOGLE_REFRESH_TOKEN to local .env
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as fp:
+                env_content = fp.read()
+            import re
+            if "GOOGLE_REFRESH_TOKEN=" in env_content:
+                env_content = re.sub(r"GOOGLE_REFRESH_TOKEN=.*", f"GOOGLE_REFRESH_TOKEN={refresh_token}", env_content)
+            else:
+                env_content += f"\nGOOGLE_REFRESH_TOKEN={refresh_token}\n"
+            with open(env_path, "w", encoding="utf-8") as fp:
+                fp.write(env_content)
+            print("✓ Updated GOOGLE_REFRESH_TOKEN in local .env!")
+    except Exception as e:
+        print(f"Could not auto-write to .env: {e}")
 
     print("\n" + "=" * 65)
     print("🎉 SUCCESS! Add these secrets to your Hugging Face Space:")

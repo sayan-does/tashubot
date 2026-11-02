@@ -17,6 +17,13 @@ from tools_google_mcp import (
     gtasks_create_task,
     gtasks_complete_task,
 )
+from tools_github import (
+    github_list_repos,
+    github_get_repo,
+    github_list_files,
+    github_read_file,
+    github_get_profile,
+)
 
 TOOLS = [
     {
@@ -188,6 +195,78 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_list_repos",
+            "description": "List the authenticated user's GitHub repositories with names, descriptions, languages, star counts, and URLs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_results": {"type": "integer", "description": "Maximum repositories to return (default 10)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_get_repo",
+            "description": "Get detailed metadata, description, primary language, star count, and branches for a GitHub repository.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo_name": {"type": "string", "description": "Repository name (e.g. 'tashubot' or 'sayan-does/tashubot')"},
+                },
+                "required": ["repo_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_list_files",
+            "description": "List files and directories inside a GitHub repository directory or root.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo_name": {"type": "string", "description": "Repository name (e.g. 'tashubot' or 'sayan-does/tashubot')"},
+                    "path": {"type": "string", "description": "Optional subdirectory path within the repository (default root '')"},
+                    "branch": {"type": "string", "description": "Branch name (default 'main')"},
+                },
+                "required": ["repo_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_read_file",
+            "description": "Read the source code or text content of a file from a GitHub repository.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo_name": {"type": "string", "description": "Repository name (e.g. 'tashubot' or 'sayan-does/tashubot')"},
+                    "file_path": {"type": "string", "description": "Relative file path inside the repository (e.g. 'requirements.txt')"},
+                    "branch": {"type": "string", "description": "Branch name (default 'main')"},
+                },
+                "required": ["repo_name", "file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_get_profile",
+            "description": "Get GitHub profile information (bio, public repos, followers, following) for the user or a specific username.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {"type": "string", "description": "Optional username to inspect (defaults to authenticated user)"},
+                },
+            },
+        },
+    },
 ]
 
 FUNCS = {
@@ -203,6 +282,11 @@ FUNCS = {
     "gtasks_create_task": gtasks_create_task,
     "gtasks_complete_task": gtasks_complete_task,
     "search_docs": search_docs,
+    "github_list_repos": github_list_repos,
+    "github_get_repo": github_get_repo,
+    "github_list_files": github_list_files,
+    "github_read_file": github_read_file,
+    "github_get_profile": github_get_profile,
 }
 
 # Maximum messages allowed before triggering auto-compaction/pruning
@@ -222,10 +306,16 @@ Core Capabilities & Guidelines:
    - Google Calendar: Use `gcalendar_list_events` and `gcalendar_create_event` for schedule and reminders.
    - Google Tasks: Use `gtasks_list_tasks`, `gtasks_create_task`, and `gtasks_complete_task` to manage to-dos and checklists.
    - Gmail: Use `gmail_search_emails` and `gmail_send_email` for email lookups and drafting.
-2. Web Search: Use `web_search` for fresh facts, sports scores, news, or latest updates.
-3. Personal RAG: Use `search_docs` for locally stored vector documents.
-4. Skills: Use `load_skill` to consult specialized guidelines when requested or applicable.
-5. Communication: Be clear, accurate, and direct. Format answers cleanly using Markdown.
+2. GitHub Developer Tools:
+   - Repositories: Use `github_list_repos` to see authenticated user repositories.
+   - Repo Inspection: Use `github_get_repo` for stars, branch, and metadata.
+   - File Explorer: Use `github_list_files` to list repository folders and contents.
+   - Code Reader: Use `github_read_file` to inspect code and configuration files.
+   - Profile: Use `github_get_profile` to check bio, follower stats, and account info.
+3. Web Search: Use `web_search` for fresh facts, sports scores, news, or latest updates.
+4. Personal RAG: Use `search_docs` for locally stored vector documents.
+5. Skills: Use `load_skill` to consult specialized guidelines when requested or applicable.
+6. Communication: Be clear, accurate, and direct. Format answers cleanly using Markdown.
 
 {skills_summary}
 """

@@ -4,6 +4,9 @@ import base64
 import time
 from datetime import datetime, timezone
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Google Workspace OAuth & Token Management

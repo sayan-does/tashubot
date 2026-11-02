@@ -133,7 +133,7 @@ def call_openrouter_free(messages, tools=None):
 ROUTER_PROMPT = (
     "You are an ultra-fast query classification router for an AI agent. "
     "Classify the following user prompt into EXACTLY ONE of these 5 categories:\n"
-    "- CODE (programming, script, python, bugs, SQL, regex, syntax, HTML/CSS)\n"
+    "- CODE (programming, script, python, bugs, SQL, regex, syntax, HTML/CSS, github, git, repo)\n"
     "- MATH_LOGIC (complex math, step-by-step algorithms, puzzles, proof, reasoning)\n"
     "- GOOGLE_WORKSPACE (calendar, reminders, tasks, to-do list, drive files, email)\n"
     "- SEARCH_FACTS (current news, live scores, facts, weather, latest updates)\n"
@@ -145,7 +145,7 @@ ROUTER_PROMPT = (
 def classify_prompt_intent(user_text: str) -> tuple[str, str]:
     """
     Invokes an ultra-lightweight, high-speed model to infer the category in ~80-120ms.
-    1. Tries Groq llama-3.1-8b-instant (1,000+ tokens/sec).
+    1. Tries Groq tiny fast router (Qwen 27B @ 800 t/s).
     2. Falls back to Gemini Flash Lite.
     3. Falls back to heuristic keywords.
     Returns: (category, router_model_name)
@@ -206,7 +206,7 @@ def classify_prompt_intent(user_text: str) -> tuple[str, str]:
     lower = clean_text.lower()
     if any(k in lower for k in ["calendar", "schedule", "task", "todo", "to-do", "drive", "email", "gmail"]):
         return "GOOGLE_WORKSPACE", "Heuristic Intent Router"
-    if any(k in lower for k in ["def ", "class ", "function", "import ", "sql", "bug", "python", "code", "regex", "javascript"]):
+    if any(k in lower for k in ["github", "repo", "git ", "def ", "class ", "function", "import ", "sql", "bug", "python", "code", "regex", "javascript"]):
         return "CODE", "Heuristic Intent Router"
     if any(k in lower for k in ["calculate", "math", "proof", "logic", "puzzle", "algorithm", "derive"]):
         return "MATH_LOGIC", "Heuristic Intent Router"
@@ -224,43 +224,43 @@ def get_orchestrated_providers(intent: str) -> list:
     """Return ordered list of providers based on inferred prompt intent."""
     if intent == "CODE":
         return [
-            ("Mistral (Codestral)", call_mistral),
-            ("GitHub Models (GPT-4o-mini)", call_github_models),
-            ("Groq (Llama-3.3-70B)", call_groq),
+            ("Groq (GPT-OSS-120B)", call_groq),
             ("Gemini Flash Lite", call_gemini_free),
             ("OpenRouter Free", call_openrouter_free),
+            ("Mistral (Codestral)", call_mistral),
+            ("GitHub Models (GPT-4o-mini)", call_github_models),
         ]
     elif intent == "MATH_LOGIC":
         return [
-            ("GitHub Models (GPT-4o-mini/DeepSeek)", call_github_models),
-            ("Mistral AI", call_mistral),
-            ("Groq (Llama-3.3-70B)", call_groq),
+            ("Groq (GPT-OSS-120B)", call_groq),
             ("Gemini Flash Lite", call_gemini_free),
             ("OpenRouter Free", call_openrouter_free),
+            ("GitHub Models (GPT-4o-mini/DeepSeek)", call_github_models),
+            ("Mistral AI", call_mistral),
         ]
     elif intent == "GOOGLE_WORKSPACE":
         return [
             ("Gemini Flash Lite (Tools Master)", call_gemini_free),
-            ("Groq (Llama-3.3-70B)", call_groq),
+            ("Groq (GPT-OSS-120B)", call_groq),
+            ("OpenRouter Free", call_openrouter_free),
             ("GitHub Models (GPT-4o-mini)", call_github_models),
             ("Mistral AI", call_mistral),
-            ("OpenRouter Free", call_openrouter_free),
         ]
     elif intent == "SEARCH_FACTS":
         return [
-            ("Groq (Llama-3.3-70B)", call_groq),
+            ("Groq (GPT-OSS-120B)", call_groq),
             ("Gemini Flash Lite", call_gemini_free),
-            ("GitHub Models (GPT-4o-mini)", call_github_models),
             ("OpenRouter Free", call_openrouter_free),
+            ("GitHub Models (GPT-4o-mini)", call_github_models),
             ("Mistral AI", call_mistral),
         ]
     else:  # FAST_CHAT or default
         return [
-            ("Groq (Llama-3.3-70B)", call_groq),
+            ("Groq (GPT-OSS-120B)", call_groq),
             ("Gemini Flash Lite", call_gemini_free),
+            ("OpenRouter Free", call_openrouter_free),
             ("GitHub Models (GPT-4o-mini)", call_github_models),
             ("Mistral AI", call_mistral),
-            ("OpenRouter Free", call_openrouter_free),
         ]
 
 
